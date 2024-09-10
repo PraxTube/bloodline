@@ -1,0 +1,10 @@
+[package]
+name = "bloodline"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+petgraph = "0.6.5"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+rusqlite = "0.32.1"
