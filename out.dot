@@ -1,0 +1,9 @@
+digraph {
+    0 [ label = "Herr Mustermann" ]
+    1 [ label = "Frau Mustermann" ]
+    2 [ label = "Kind Mustermann" ]
+    3 [ label = "Me Rancic" ] [ image = "003-pic.jpg" ]
+    0 -> 2 [ ]
+    1 -> 2 [ ]
+}
+

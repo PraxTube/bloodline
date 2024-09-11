@@ -1,4 +1,7 @@
-use std::{fs::File, io::Write};
+use std::{
+    fs::{read, read_to_string, write},
+    path::Path,
+};
 
 use petgraph::{
     dot::{Config, Dot},
@@ -28,6 +31,42 @@ struct Relation {
     mother: usize,
 }
 
+fn format_pic_str(id: usize) -> String {
+    format!("{:03}-pic.jpg", id)
+}
+
+fn parse_labels_dot_file(path: &str) {
+    fn construct_line(line: &str, parts: Vec<&str>) -> String {
+        if let Ok(id) = parts[0].parse::<usize>() {
+            if parts[1] != "[" {
+                return line.to_string();
+            }
+
+            let pic_str = format_pic_str(id);
+            if !Path::new(&pic_str).exists() {
+                return line.to_string();
+            }
+
+            let appendix = format!(" [ image = \"{}\" ]", pic_str);
+            line.to_string() + &appendix
+        } else {
+            line.to_string()
+        }
+    }
+
+    let content = read_to_string(path).expect("Failed to read file content");
+    let mut output_content = String::new();
+
+    for line in content.split("\n") {
+        let parts: Vec<&str> = line.trim().split(' ').collect();
+
+        let final_line = construct_line(line, parts);
+        output_content += &(final_line + "\n");
+    }
+
+    write(path, output_content).expect("Failed to parse dot file");
+}
+
 fn construct_graph() -> Result<Graph<String, usize, Directed>> {
     let mut container = Container {
         graph: Graph::default(),
@@ -51,6 +90,11 @@ fn construct_graph() -> Result<Graph<String, usize, Directed>> {
         let _index = container
             .graph
             .add_node(format!("{} {}", person.name, person.surname));
+
+        let path = format_pic_str(person.id);
+        if let Some(contents) = person.image {
+            write(path, contents).expect("Failed to write image to file");
+        }
     }
 
     let mut stmt = conn.prepare("SELECT * FROM relations")?;
@@ -122,6 +166,13 @@ fn dummy_insert() -> Result<()> {
         (2, 0, 1),
     )?;
 
+    // ---
+
+    conn.execute(
+        "INSERT INTO person (id, name, surname, image) VALUES (?1, ?2, ?3, ?4)",
+        (3, "Me", "Rancic", read("./pic.jpg").unwrap()),
+    )?;
+
     Ok(())
 }
 
@@ -131,15 +182,12 @@ fn main() {
 
     let graph = construct_graph().unwrap();
 
-    let mut file = match File::create(OUTPUT_FILE) {
-        Ok(r) => r,
-        Err(err) => panic!("Can't create/open file: '{}', {}", OUTPUT_FILE, err),
-    };
-
-    file.write_all(
+    write(
+        OUTPUT_FILE,
         Dot::with_config(&graph, &[Config::EdgeNoLabel])
             .to_string()
             .as_bytes(),
     )
-    .unwrap_or_else(|_| panic!("Couldn't write to file: '{}'", OUTPUT_FILE));
+    .expect("Can't write to output dot file");
+    parse_labels_dot_file(OUTPUT_FILE);
 }
